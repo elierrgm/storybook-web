@@ -52,6 +52,16 @@
         box-shadow: 0 12px 28px rgba(71, 107, 91, .25);
       }
 
+      .mark.failure {
+        background: #9b3f38;
+        box-shadow: 0 12px 28px rgba(155, 63, 56, .22);
+      }
+
+      .mark.neutral {
+        background: #756351;
+        box-shadow: 0 12px 28px rgba(117, 99, 81, .2);
+      }
+
       h1 {
         margin: 0 0 14px;
         font-size: clamp(2rem, 7vw, 3.25rem);
@@ -102,7 +112,7 @@
   </head>
   <body>
     <main>
-      <div class="mark" aria-hidden="true">✓</div>
+      <div id="status-mark" class="mark" aria-hidden="true">✓</div>
       <p class="eyebrow">Storybook</p>
       <section id="success">
         <h1>Email confirmed</h1>
@@ -112,16 +122,49 @@
         <h1>Confirmation failed</h1>
         <p id="error-message">The confirmation link could not be completed. Return to Storybook and request a new email.</p>
       </section>
+      <section id="neutral" hidden>
+        <h1>Confirm your email</h1>
+        <p>Open the confirmation link in the email sent by Storybook. If you already confirmed, return to the app and sign in.</p>
+      </section>
       <p class="note">For your security, this page does not display or retain account information.</p>
     </main>
     <script>
-      const parameters = new URLSearchParams(`${location.search}&${location.hash.slice(1)}`)
+      const queryParameters = new URLSearchParams(location.search)
+      const fragmentParameters = new URLSearchParams(location.hash.slice(1))
+      const parameters = new URLSearchParams([...queryParameters, ...fragmentParameters])
       const error = parameters.get("error_description") || parameters.get("error")
+      const hasConfirmationResult = [
+        "access_token",
+        "code",
+        "refresh_token",
+        "token_type",
+        "type"
+      ].some((name) => parameters.has(name))
+
+      // Supabase can return session credentials in the URL. This page does not
+      // use them, so remove them immediately from the address bar and history.
+      if (location.search || location.hash) {
+        history.replaceState(null, "", location.pathname)
+      }
+
       if (error) {
         document.querySelector("#success").hidden = true
         document.querySelector("#failure").hidden = false
-        document.querySelector("#error-message").textContent = decodeURIComponent(error.replaceAll("+", " "))
+        const isExpired = parameters.get("error_code") === "otp_expired"
+        document.querySelector("#error-message").textContent = isExpired
+          ? "This confirmation link has expired. Return to Storybook and request a new email."
+          : "This confirmation link is invalid or could not be completed. Return to Storybook and request a new email."
+        const mark = document.querySelector("#status-mark")
+        mark.classList.add("failure")
+        mark.textContent = "!"
         document.title = "Confirmation failed · Storybook"
+      } else if (!hasConfirmationResult) {
+        document.querySelector("#success").hidden = true
+        document.querySelector("#neutral").hidden = false
+        const mark = document.querySelector("#status-mark")
+        mark.classList.add("neutral")
+        mark.textContent = "✉"
+        document.title = "Confirm your email · Storybook"
       }
     </script>
   </body>
