@@ -3,3 +3,5 @@
 /* The grouped password control owns its focus ring; avoid a second input outline. */
 .field input:focus-visible{outline:none}
 @media(prefers-color-scheme:dark){.field:focus-within{border-color:#80b4ff;outline-color:#80b4ff}}
+
+.requirement{list-style:none;padding:0;display:grid;gap:8px}.requirement li.met{color:#137542}@media(prefers-color-scheme:dark){.requirement li.met{color:#76dba1}}

@@ -17,8 +17,8 @@ Public account-support pages for the Storybook iOS app. No analytics or tracking
 3. The default Supabase reset email is supported. Custom templates currently require
    custom SMTP or Pro. If enabled later, use `recovery-email.html`; do not change
    confirmation. No paid service is required for the current default-email flow.
-4. Set the Supabase Email provider's minimum password length to 15; leave character
-   mixture requirements unset. Existing users keep signing in with their passwords.
+4. Set the Supabase Email provider's minimum password length to 15 and require lowercase, uppercase,
+   digits and symbols. Existing users keep signing in with their passwords.
 5. A person requests a live reset email, opens it, updates their own password and
    confirms app sign-in. Verify expired/reused links and another-device recovery.
 
@@ -27,7 +27,9 @@ Continue. Default emails verify the one-time link in Supabase first and redirect
 with a recovery session in the fragment; the page validates that session on
 Continue. Passive scanners may consume default email links; a new-link flow is
 available for expired or used links. Do not log credentials or tokens.
-The form uses 15 Unicode code points, spaces allowed, matching the iOS policy.
+The form requires 15 Unicode code points, uppercase and lowercase ASCII letters,
+a digit and a Supabase-supported symbol. Spaces are allowed. This matches iOS.
+Common/leaked-password protection is intentionally deferred; no paid plan enabled.
 
 Run tests: `node --test auth/reset-password/recovery-core.test.mjs`.
 

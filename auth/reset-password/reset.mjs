@@ -1,5 +1,5 @@
 import { accountConfig } from './config.mjs';
-import { readRecoveryLink, readRecoverySession, validNewPassword, createRecoverySession } from './recovery-core.mjs';
+import { readRecoveryLink, readRecoverySession, passwordRequirements, validNewPassword, createRecoverySession } from './recovery-core.mjs?v=3';
 const byID = id => document.getElementById(id);
 let tokenHash = readRecoveryLink(location.href);
 let incomingSession = readRecoverySession(location.href);
@@ -29,11 +29,22 @@ byID('continue').addEventListener('click', async () => {
     byID('password').focus();
   } catch { invalid('This reset link has expired or was already used. Request a new link below.'); }
 });
+const checklist = byID('requirement');
+for (const rule of passwordRequirements) {
+  const row = document.createElement('li');
+  row.id = `rule-${rule.id}`;
+  row.textContent = `○ ${rule.label}`;
+  checklist.append(row);
+}
 byID('password').addEventListener('input', () => {
-  const met = validNewPassword(byID('password').value);
-  byID('check').textContent = met ? '✓' : '○';
-  byID('requirement').classList.toggle('met', met);
-  byID('save').disabled = !met;
+  const value = byID('password').value;
+  for (const rule of passwordRequirements) {
+    const row = byID(`rule-${rule.id}`), met = rule.met(value);
+    row.textContent = `${met ? '✓' : '○'} ${rule.label}`;
+    row.classList.toggle('met', met);
+    row.setAttribute('aria-label', `${rule.label}: ${met ? 'Met' : 'Not met'}`);
+  }
+  byID('save').disabled = !validNewPassword(value);
 });
 byID('visibility').addEventListener('click', () => {
   const input = byID('password'), button = byID('visibility');
@@ -59,7 +70,7 @@ byID('password-form').addEventListener('submit', async event => {
       invalid('Your reset session expired. Request a new link below.');
     } else {
       status.textContent = error.message === 'same-password' ? 'Choose a password different from your current one.' :
-        (error.message === 'weak-password' ? 'Choose a stronger password with at least 15 characters.' :
+        (error.message === 'weak-password' ? 'Use at least 15 characters, with uppercase and lowercase letters, a number and a symbol.' :
          'We couldn’t save your password. Check your connection and try again.');
       byID('save').disabled = !validNewPassword(input.value);
     }

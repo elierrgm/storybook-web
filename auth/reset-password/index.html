@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://wnzmctavzyepgeqawkcq.supabase.co; img-src 'self'; base-uri 'none'; form-action 'none'">
 <title>Reset password · Storybook</title>
-<link rel="stylesheet" href="reset.css?v=2"><script type="module" src="reset.mjs"></script>
+<link rel="stylesheet" href="reset.css?v=3"><script type="module" src="reset.mjs?v=3"></script>
 </head>
 <body><main>
 <div class="brand" aria-hidden="true">Storybook</div>
@@ -16,8 +16,8 @@
 <form id="password-form" hidden>
 <label for="password">New password</label>
 <div class="field"><input id="password" type="password" autocomplete="new-password" autocapitalize="none" spellcheck="false" required><button id="visibility" class="text-button" type="button" aria-controls="password" aria-pressed="false">Show</button></div>
-<p id="requirement" class="requirement"><span id="check" aria-hidden="true">○</span> At least 15 characters</p>
-<p class="small">Spaces and passphrases are welcome. No required mix of letters, numbers or symbols.</p>
+<ul id="requirement" class="requirement" aria-label="Password requirements"></ul>
+<p class="small">Spaces and passphrases are welcome. Include each character type above.</p>
 <button id="save" type="submit" disabled>Save password</button>
 </form>
 <p id="status" role="status" aria-live="polite"></p>

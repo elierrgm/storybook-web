@@ -1,5 +1,13 @@
 export const minimumPasswordLength = 15;
-export const validNewPassword = value => Array.from(value).length >= minimumPasswordLength;
+export const passwordSymbols = "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+export const passwordRequirements = [
+  {id:'length', label:'At least 15 characters', met:value => Array.from(value).length >= minimumPasswordLength},
+  {id:'uppercase', label:'An uppercase letter (A–Z)', met:value => /[A-Z]/.test(value)},
+  {id:'lowercase', label:'A lowercase letter (a–z)', met:value => /[a-z]/.test(value)},
+  {id:'number', label:'A number (0–9)', met:value => /[0-9]/.test(value)},
+  {id:'symbol', label:'A symbol (for example !, @ or #)', met:value => Array.from(value).some(c => passwordSymbols.includes(c))}
+];
+export const validNewPassword = value => passwordRequirements.every(rule => rule.met(value));
 
 export function readRecoveryLink(url) {
   const parsed = new URL(url);
