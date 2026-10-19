@@ -1,7 +1,8 @@
 import { accountConfig } from './config.mjs';
-import { readRecoveryLink, validNewPassword, createRecoverySession } from './recovery-core.mjs';
+import { readRecoveryLink, readRecoverySession, validNewPassword, createRecoverySession } from './recovery-core.mjs';
 const byID = id => document.getElementById(id);
 let tokenHash = readRecoveryLink(location.href);
+let incomingSession = readRecoverySession(location.href);
 // Remove credential/error parameters before any request. No third-party scripts run here.
 history.replaceState(null, '', location.pathname);
 const recovery = createRecoverySession(accountConfig);
@@ -13,13 +14,14 @@ function invalid(message) {
   byID('request').hidden = false;
   status.textContent = message;
 }
-if (!tokenHash) invalid('This reset link is missing, expired or invalid. Request a new link below.');
+if (!tokenHash && !incomingSession) invalid('This reset link is missing, expired or invalid. Request a new link below.');
 byID('continue').addEventListener('click', async () => {
   byID('continue').disabled = true;
   status.textContent = 'Verifying your reset link…';
-  const token = tokenHash; tokenHash = null;
+  const token = tokenHash, session = incomingSession; tokenHash = null; incomingSession = null;
   try {
-    await recovery.verify(token);
+    if (token) await recovery.verify(token);
+    else await recovery.verifySession(session);
     byID('verify').hidden = true;
     byID('password-form').hidden = false;
     byID('intro').textContent = 'Choose a long password you haven’t used elsewhere.';
@@ -73,13 +75,13 @@ byID('request-form').addEventListener('submit', async event => {
       'We couldn’t send a link. Check your connection and try again.';
   } finally { byID('send').disabled = false; }
 });
-addEventListener('pagehide', () => { recovery.clear(); tokenHash = null; byID('password').value = ''; });
+addEventListener('pagehide', () => { recovery.clear(); tokenHash = null; incomingSession = null; byID('password').value = ''; });
 addEventListener('pageshow', event => {
   if (event.persisted) invalid('For your security, request a fresh reset link to continue.');
 });
 
 if (window.top !== window.self) {
-  recovery.clear(); tokenHash = null;
+  recovery.clear(); tokenHash = null; incomingSession = null;
   invalid('Open this reset page directly from your email to continue.');
   byID('request').hidden = true;
 }

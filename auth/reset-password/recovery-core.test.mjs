@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readRecoveryLink,validNewPassword,createRecoverySession} from './recovery-core.mjs';
+import {readRecoveryLink,readRecoverySession,validNewPassword,createRecoverySession} from './recovery-core.mjs';
 const config={supabaseURL:'https://fixture.invalid',publishableKey:'public-fixture',resetPasswordURL:'https://fixture.invalid/reset/'};
 const reply=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
 test('recovery-only links reject missing, wrong and duplicate parameters',()=>{
@@ -35,4 +35,20 @@ test('invalid/reused links cannot update password',async()=>{
 test('recover uses neutral success and preserves rate limit',async()=>{
  const session=createRecoverySession(config,async()=>reply({}));await session.requestLink('parent@example.com');
  const limited=createRecoverySession(config,async()=>reply({},429));await assert.rejects(limited.requestLink('parent@example.com'),/rate-limit/);
+});
+
+test('default email recovery accepts only well-formed recovery fragments',()=>{
+ const fragment='access_token=fixture&token_type=bearer&expires_in=3600&type=recovery';
+ assert.equal(readRecoverySession('https://site/reset#'+fragment).token,'fixture');
+ for(const url of ['https://site/reset?'+fragment,'https://site/reset#'+fragment.replace('recovery','signup'),'https://site/reset#'+fragment+'&access_token=other','https://site/reset#'+fragment.replace('3600','NaN')]) assert.equal(readRecoverySession(url),null);
+});
+test('default recovery validates server session before permitting a password update',async()=>{
+ const calls=[];
+ const session=createRecoverySession(config,async(url,options)=>{calls.push({url,options});return reply({id:'fixture-user'});},()=>0);
+ await session.verifySession({token:'fixture-session',expires:30000});
+ assert.equal(calls[0].options.method,'GET');assert.equal(calls[0].options.body,undefined);
+ await session.save('a long passphrase');assert.equal(calls[1].options.method,'PUT');
+ const invalid=createRecoverySession(config,async()=>reply({},401),()=>0);
+ await assert.rejects(invalid.verifySession({token:'bad',expires:30000}),/invalid/);
+ await assert.rejects(invalid.save('a long passphrase'),/expired/);
 });

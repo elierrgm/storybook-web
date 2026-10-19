@@ -13,6 +13,22 @@ export function readRecoveryLink(url) {
   return params.get('token_hash');
 }
 
+// Supabase's default email verifies the one-time link before redirecting here.
+// Accept session credentials only from a recovery fragment, never query parameters.
+export function readRecoverySession(url) {
+  const parsed = new URL(url);
+  const p = new URLSearchParams(parsed.hash.slice(1));
+  const keys = ['access_token', 'type', 'token_type', 'expires_in'];
+  if (keys.some(k => p.getAll(k).length !== 1) || p.get('type') !== 'recovery' ||
+      p.get('token_type') !== 'bearer' || !p.get('access_token') || p.has('error') ||
+      p.has('token_hash') || parsed.search) return null;
+  const duration = Number(p.get('expires_in'));
+  if (!Number.isFinite(duration) || duration <= 0) return null;
+  const expiry = p.get('expires_at');
+  if (p.getAll('expires_at').length > 1 || (expiry && !Number.isFinite(Number(expiry)))) return null;
+  return { token: p.get('access_token'), expires: expiry ? Number(expiry) * 1000 : Date.now() + duration * 1000 };
+}
+
 // No browser storage, SDK auto-refresh, analytics or credential logging.
 export function createRecoverySession(config, request = fetch, now = () => Date.now()) {
   let session = null;
@@ -21,7 +37,7 @@ export function createRecoverySession(config, request = fetch, now = () => Date.
   async function api(path, body, method = 'POST', token) {
     const response = await request(`${config.supabaseURL}/auth/v1/${path}`, {
       method, headers: { ...headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify(body), credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+      ...(method === 'GET' ? {} : { body: JSON.stringify(body) }), credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
       signal: AbortSignal.timeout(30000)
     });
     const data = await response.json().catch(() => ({}));
@@ -37,6 +53,16 @@ export function createRecoverySession(config, request = fetch, now = () => Date.
           throw new Error('invalid-link');
         }
         session = { token: result.data.access_token, expires: now() + result.data.expires_in * 1000 };
+        phase = 'ready';
+      } catch { session = null; phase = 'invalid'; throw new Error('invalid-link'); }
+    },
+    async verifySession(incoming) {
+      if (phase !== 'unverified' || !incoming || incoming.expires <= now()) throw new Error('invalid-link');
+      phase = 'verifying';
+      try {
+        const result = await api('user', undefined, 'GET', incoming.token);
+        if (!result.ok || !result.data.id) throw new Error('invalid-link');
+        session = { token: incoming.token, expires: incoming.expires };
         phase = 'ready';
       } catch { session = null; phase = 'invalid'; throw new Error('invalid-link'); }
     },
